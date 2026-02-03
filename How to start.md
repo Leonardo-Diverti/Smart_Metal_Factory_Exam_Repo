@@ -1,6 +1,6 @@
 # How to Start
 
-### Prerequisites
+### Prerequisiti
 
 Assicurarsi di avere Python 3.10+ installato.
 Si consiglia di utilizzare un virtual environment.
