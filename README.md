@@ -1,128 +1,119 @@
 # Smart_Metal_Factory_Exam_Repository
 
-# Indice dei Contenuti
+# Table of Contents
 
-- [Scenario - Reparto Tornitura Smart](#scenario---reparto-tornitura-smart)
-  - [Architettura di Alto Livello & Componenti Principali](#architettura-di-alto-livello--componenti-principali)
-  - [Interazioni & Ciclo di Controllo](#interazioni--ciclo-di-controllo)
-- [Modelli Dati (Data Models)](#modelli-dati-data-models)
-- [Protocolli & Comunicazione](#protocolli--comunicazione)
-  - [Mappatura Risorse CoAP](#mappatura-risorse-coap)
-  - [Payload SenML + JSON](#payload-senml--json)
-- [Strategia di Edge Intelligence](#strategia-di-edge-intelligence)
-
----
-
-# Scenario - Reparto Tornitura Smart
-
-![Smart Factory Architecture](https://via.placeholder.com/800x400?text=Smart+Factory+Digital+Twin+Architecture)
-
-**Figura 1:** Rappresentazione schematica dello scenario Smart Metal Factory che coinvolge simulazione fisica, esposizione server CoAP e gestione intelligente all'Edge.
-
-Questo progetto implementa una soluzione di **Digital Twin** per una fabbrica metalmeccanica Industria 4.0. Simula un "Reparto Tornitura" suddiviso in isole di produzione. Ogni isola è dotata di macchinari intelligenti che generano dati di telemetria e accettano comandi remoti. Il sistema garantisce monitoraggio in tempo reale, manutenzione automatizzata (es. compattazione rifiuti) e interventi critici di sicurezza (es. svuotamento d'emergenza) tramite un approccio Edge Computing.
+- [Scenario - Smart Metal Factory](#scenario---smart-metal-factory)
+  - [High-Level Architecture & Main Components](#high-level-architecture--main-components)
+  - [Data Models](#data-models)
+  - [Protocols & Communication](#protocols--communication)
+    - [CoAP Resources & Mapping](#coap-resources--mapping)
+    - [Interaction Patterns](#interaction-patterns)
+- [Project Structure](#project-structure)
+- [How to Start](#how-to-start)
+  - [Prerequisites](#prerequisites)
+  - [Running the Server](#running-the-server)
+  - [Running the Manager](#running-the-manager)
 
 ---
 
-## Architettura di Alto Livello & Componenti Principali
+# Scenario - Smart Metal Factory
 
-La soluzione segue un'architettura Cyber-Physical System (CPS) a tre livelli:
+Il progetto **Smart Metal Factory** simula un ambiente industriale digitalizzato (Digital Twin) dedicato alla lavorazione dei metalli (es. Tornitura). L'obiettivo è monitorare e gestire in tempo reale lo stato delle isole produttive, ottimizzando la gestione degli scarti, la qualità del refrigerante e il flusso dei materiali sui nastri trasportatori.
 
-- **Livello di Simulazione Fisica (`/model`)**
-  - **Waste Bin (Cassone)**: Simula l'accumulo di scarti dai torni. Include una fisica complessa con logica del "pavimento compattato" (i rifiuti diventano più densi e difficili da comprimere nel tempo).
-  - **Coolant Tank (Vasca Refrigerante)**: Simula i livelli di torbidità (NTU) che aumentano a causa dei detriti metallici.
-  - **Conveyor Belt (Nastro Trasportatore)**: Simula l'accumulo di materiale (kg) sulla linea di produzione.
-  - **Attuatori**: Compattatori, Pompe di Filtraggio e Motori che alterano fisicamente i valori dei sensori quando attivati.
+Il sistema è composto da un **Server CoAP** che simula la fisica dei dispositivi (sensori e attuatori) e da uno **Smart Waste Manager** (Client) che agisce come controller intelligente, eseguendo policy di automazione basate sui dati di telemetria ricevuti.
 
-- **Livello di Connettività ed Esposizione (`/resources` + `factory_server.py`)**
-  - Agisce come **Server CoAP**.
-  - Avvolge i modelli fisici in **Risorse CoAP Observable**.
-  - Espone un'interfaccia standard (`.well-known/core`) per la discovery dinamica.
-  - Esegue un loop fisico a 10Hz per aggiornare gli stati della simulazione e notificare gli osservatori.
+## High-Level Architecture & Main Components
 
-- **Livello di Intelligenza Edge (`/client`)**
-  - **Smart Waste Manager**: Il "Cervello" del sistema.
-  - Esegue la discovery dinamica delle isole e dei dispositivi disponibili.
-  - Implementa **Policy di Controllo**:
-    - *Policy Soglia*: Attuazione standard (es. accendi compattatore quando cassone > 80%).
-    - *Policy Critica*: Reset di emergenza (es. svuota cassone via POST quando > 95%).
+- **Edge/Server Layer (Factory Server)**
+  Simula il comportamento fisico dei dispositivi e li espone come risorse CoAP. Include un "Physics Engine" interno che aggiorna lo stato dei sensori a 10Hz.
+  - **Sensors:**
+    - **Bin Level Sensor**: Misura la percentuale di riempimento dei contenitori di scarti metallici.
+    - **Coolant Turbidity Sensor**: Monitora la torbidità del liquido refrigerante (in NTU) per prevenire malfunzionamenti.
+    - **Conveyor Weight Sensor**: Rileva il peso del materiale (in kg) trasportato sui nastri.
+  - **Actuators:**
+    - **Compactor**: Comprime gli scarti nel bidone per guadagnare spazio.
+    - **Filter Pump**: Attiva il filtraggio del refrigerante per ridurne la torbidità.
+    - **Conveyor Motor**: Gestisce il movimento del nastro trasportatore.
 
-## Interazioni & Ciclo di Controllo
-
-1.  **Flusso Telemetria**: I sensori inviano aggiornamenti via CoAP Observe al Manager.
-2.  **Processo Decisionale**: Il Manager valuta le policy rispetto ai valori ricevuti.
-3.  **Attuazione**:
-    - **PUT**: Per operazioni standard (cicli ON/OFF per compattatori/pompe).
-    - **POST**: Per reset istantanei (svuotamento cassoni/cambio liquido).
+- **Control Layer (Smart Waste Manager)**
+  Un'applicazione client autonoma che:
+  - Esegue la **Discovery** automatica delle risorse disponibili sulla rete.
+  - Sottoscrive (Observe) le risorse per ricevere aggiornamenti in tempo reale.
+  - Applica **Policy di Controllo** (es. Soglia 80% -> Attiva Compattatore; Soglia 95% -> Svuotamento Critico).
+  - Calcola metriche di efficienza (es. rate di riempimento al minuto).
 
 ---
 
-# Modelli Dati (Data Models)
+## Data Models
 
-Ogni dispositivo fisico è modellato con attributi specifici e logica fisica. I timestamp sono generati all'edge.
+Ogni sensore e attuatore utilizza un modello dati specifico. Per la telemetria viene utilizzato prevalentemente il formato **SenML+JSON**, mentre per la configurazione degli attuatori si utilizzano oggetti JSON custom.
 
-**Waste Bin Data Model**
-Progettato per la **BinLevelResource**.
+I timestamp sono rappresentati come Unix epoch time.
 
-| Campo | Tipo | Descrizione |
-|-------|------|-------------|
-| `value` | Double | Livello di riempimento percentuale (0.0 - 100.0%) |
-| `unit` | String | Unità di misura ("%") |
-| `compacted_floor`| Double | Livello minimo di compressione (simula la densità dei rifiuti solidi) |
-| `timestamp` | Long | Unix epoch timestamp |
+**Bin Level Data Model**
 
-**Coolant Tank Data Model**
-Progettato per la **CoolantResource**.
+Progettato per il monitoraggio dei rifiuti di lavorazione.
 
-| Campo | Tipo | Descrizione |
-|-------|------|-------------|
-| `value` | Double | Livello di torbidità |
-| `unit` | String | "NTU" (Nephelometric Turbidity Unit) |
-| `timestamp` | Long | Unix epoch timestamp |
+| **Field** | **Type** | **Description** |
+|-----------|----------|-----------------|
+| `n` (name) | String | Identificativo risorsa (es. "waste") |
+| `u` (unit) | String | Unità di misura ("%") |
+| `v` (value)| Double | Livello di riempimento corrente (0.0 - 100.0) |
+| `t` (time) | Long | Unix epoch timestamp (s) |
 
-**Actuator Status Model**
-Usato dalle risorse **Compactor**, **Pump** e **Motor**.
+**Coolant Turbidity Data Model**
 
-| Campo | Tipo | Descrizione |
-|-------|------|-------------|
-| `status` | String | "ON" oppure "OFF" |
-| `last_activation`| Long | Unix epoch timestamp dell'ultimo cambio stato |
-| `cycle_count` | Integer | (Solo Compattatore) Numero di cicli di compressione eseguiti |
+Progettato per il monitoraggio della qualità dei fluidi.
+
+| **Field** | **Type** | **Description** |
+|-----------|----------|-----------------|
+| `n` (name) | String | Identificativo risorsa (es. "turbidity") |
+| `u` (unit) | String | Unità di misura ("NTU" - Nephelometric Turbidity Units) |
+| `v` (value)| Double | Valore di torbidità corrente (min 5.0) |
+| `t` (time) | Long | Unix epoch timestamp (s) |
+
+**Conveyor Weight Data Model**
+
+Progettato per monitorare il carico sulla linea di trasporto.
+
+| **Field** | **Type** | **Description** |
+|-----------|----------|-----------------|
+| `n` (name) | String | Identificativo risorsa (es. "weight") |
+| `u` (unit) | String | Unità di misura ("kg") |
+| `v` (value)| Double | Peso rilevato sul nastro |
+| `t` (time) | Long | Unix epoch timestamp (s) |
+
+**Actuator Status Data Model**
+
+Utilizzato per inviare comandi (PUT) o leggere lo stato (GET) degli attuatori (Compactor, Pump, Motor).
+
+| **Field** | **Type** | **Description** |
+|-----------|----------|-----------------|
+| `status` | String | Stato operativo: "ON" o "OFF" |
+| `last_activation` | Long | Timestamp dell'ultima attivazione |
+| `cycle_count` | Integer | (Opzionale) Numero di cicli eseguiti |
 
 ---
 
-# Protocolli & Comunicazione
+## Protocols & Communication
 
-![CoAP Protocol Diagram](https://via.placeholder.com/800x300?text=CoAP+Request+Response+and+Observe)
+Il sistema si basa interamente sul protocollo **CoAP (Constrained Application Protocol)** (RFC 7252), ideale per ambienti IoT industriali con risorse limitate.
 
-**Figura 2:** Pattern di comunicazione utilizzando CoAP (Constrained Application Protocol).
+- **Transport Layer**: UDP (Porta standard 5683).
+- **Format**: JSON / SenML+JSON.
 
-Il progetto utilizza **CoAP** su UDP, scelto per la sua idoneità in ambienti industriali vincolati che richiedono affidabilità e basso overhead.
+### CoAP Resources & Mapping
 
-### Mappatura Risorse CoAP
+Le risorse sono organizzate gerarchicamente per riflettere la topologia della fabbrica: `Reparto / Isola / Tipo / Dispositivo`.
 
-Il server espone le risorse utilizzando una struttura URI gerarchica:
-`coap://<host>:5683/tornitura/<id-isola>/<categoria>/<id-dispositivo>`
+| Resource URI Path | Interface (`if`) | Resource Type (`rt`) | Methods | Description |
+|-------------------|------------------|----------------------|---------|-------------|
+| `tornitura/isola-X/waste/bin-Y` | `core.s` | `it.unimore.device.sensor.bin_level` | GET (Obs), POST | GET: Livello attuale. POST: Reset (Svuotamento). |
+| `tornitura/isola-X/waste/compactor-Y` | `core.a` | `it.unimore.device.actuator.compactor` | GET, PUT | PUT: Attiva/Disattiva (ON/OFF). |
+| `tornitura/isola-X/coolant/turbidity-Y` | `core.s` | `it.unimore.device.sensor.coolant_turbidity` | GET (Obs), POST | GET: Torbidità. POST: Sostituzione liquido. |
+| `tornitura/isola-X/coolant/pump-Y` | `core.a` | `it.unimore.device.actuator.filter_pump` | GET, PUT | PUT: Attiva/Disattiva pompa. |
+| `tornitura/isola-X/conveyor/weight-Y` | `core.s` | `it.unimore.device.sensor.conveyor_weight` | GET (Obs) | GET: Peso rilevato. |
+| `tornitura/isola-X/conveyor/motor-Y` | `core.a` | `it.unimore.device.actuator.conveyor_motor` | GET, PUT | PUT: Avvia/Ferma motore. |
 
-| URI Risorsa | Metodi | Scopo |
-|--------------|---------|---------|
-| `.../waste/bin-1` | GET (Obs), POST | GET per monitorare il livello, POST per svuotare/resettare. |
-| `.../waste/compactor-1` | GET, PUT | PUT `{"status": "ON"}` per attivare la pressa. |
-| `.../coolant/turbidity-1`| GET (Obs), POST | GET per monitorare torbidità, POST per sostituire liquido. |
-| `.../coolant/pump-1` | GET, PUT | PUT `{"status": "ON"}` per attivare filtro. |
-| `.../conveyor/weight-1` | GET (Obs) | GET per monitorare il carico (peso). |
-| `.../conveyor/motor-1` | GET, PUT | PUT per avviare/fermare il nastro. |
 
-### Payload SenML + JSON
 
-I dati di telemetria utilizzano lo standard JSON **SenML (Sensor Measurement Lists)** per garantire l'interoperabilità.
-
-**Esempio: Aggiornamento Livello Cassone**
-```json
-[
-  {
-    "n": "island-1-bin-1",
-    "u": "%",
-    "v": 85.5,
-    "t": 167890000
-  }
-]
