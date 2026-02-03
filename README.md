@@ -8,11 +8,6 @@
   - [Protocols & Communication](#protocols--communication)
     - [CoAP Resources & Mapping](#coap-resources--mapping)
     - [Interaction Patterns](#interaction-patterns)
-- [Project Structure](#project-structure)
-- [How to Start](#how-to-start)
-  - [Prerequisites](#prerequisites)
-  - [Running the Server](#running-the-server)
-  - [Running the Manager](#running-the-manager)
 
 ---
 
